@@ -404,3 +404,201 @@ Jdk1.5以后，提供了java.util.concurrent.atomic包，这个包里面提供�
         return unsafe.getAndAddInt(this, valueOffset, delta);
     }
 当然java中的syncronized关键字，在1.5中有了很大的优化，加入了偏隙锁也有人叫偏向锁，主要的实现方式就是在对象头markword中打上线程的信息，这样资源上的锁的获取就偏向了这个线程，后面，会涉及一系列的锁升级的问题，间隙锁 - 轻量锁 - 重量级锁 ，锁升级后面单独抽出来写一篇，这个轻量锁实际上就是使用的也是自旋锁的实现方式。
+
+
+## 11.countDownLatch
+
+### countDownLatch是什么
+
+ountDownLatch的作⽤就是 允许 count 个线程阻塞在⼀个地⽅，直⾄所有线程的任务都执⾏完毕，相当于赛跑，把运动员阻塞在起点，然后再开始。
+
+```java
+public class Juc {
+    public static void main(String[] args) throws InterruptedException { 
+    //
+    CountDownLatch countDownLatch = new CountDownLatch(6);
+    for (int i = 1; i <=6 ; i++) {
+        new Thread(()->{
+        		//业务逻辑开始
+            System.out.println(Thread.currentThread().getName()+" ok");
+            //业务逻辑完成
+            countDownLatch.countDown();
+        // 数量-1
+        },String.valueOf(i)).start();
+    }
+        countDownLatch.await(); // 等待计数器归零，然后再向下执行
+        System.out.println("run");
+    }
+}
+```
+
+### 使用场景
+
+CountDownLatch作为同步化的一个辅助工具，允许一个或多个线程等待，直到所有线程中执行完成
+比如主线程计算一个复杂的计算表达式，将表达式分为多个子表达式在线程中去计算，
+主线程要计算表达式的最后值，必须等所有的线程计算完子表达式计算，方可计算表达式的值；
+再比如一个团队赛跑游戏，最后要计算团队赛跑的成绩，主线程计算最后成绩，要等到所有
+团队成员跑完，方可计算总成绩。使用情况两种：第一种，所有线程等待一个开始信息号，当开始信息号启动时，所有线程执行，等待所有线程执行完；第二种，所有线程放在线程池中，执行，等待所有线程执行完，方可执行主线程任务方可执行主线程任务。
+
+
+
+## 12.HTTP浏览器输入url后发生了什么
+
+1. DNS域名解析
+2. 建立TCP连接
+3. 发送HTTP请求
+4. 服务器处理请求
+5. 返回响应结果
+6. 关闭TCP连接
+7. 浏览器解析HTML
+8. 浏览器布局渲染
+
+https://blog.csdn.net/sinat_23880167/article/details/78882766?utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.control&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.control
+
+
+
+## 13.慢查询优化
+
+### 慢查询概念
+
+MySQL的慢查询，全名是慢查询日志，是MySQL提供的一种日志记录，用来记录在MySQL中响应时间超过阀值的语句。
+
+具体环境中，运行时间超过long_query_time值的SQL语句，则会被记录到慢查询日志中。
+
+long_query_time的默认值为10，意思是记录运行10秒以上的语句。
+
+默认情况下，MySQL数据库并不启动慢查询日志，需要手动来设置这个参数。
+
+当然，如果不是调优需要的话，一般不建议启动该参数，因为开启慢查询日志会或多或少带来一定的性能影响。
+
+慢查询日志支持将日志记录写入文件和数据库表。
+
+### 常见的慢查询优化
+
+(1) 索引没起作用的情况
+
+- 使用LIKE关键字的查询语句
+
+在使用LIKE关键字进行查询的查询语句中，如果匹配字符串的第一个字符为"%"，索引不会起作用。只有“%”不在第一个位置索引才会起作用。
+
+- 使用多列索引的查询语句
+
+​    MySQL可以为多个字段创建索引。一个索引最多可以包括16个字段。对于多列索引，只有查询条件使用了这些字段中的第一个字段时，索引才会被使用。
+
+(2) 优化数据库结构
+
+   合理的数据库结构不仅可以使数据库占用更小的磁盘空间，而且能够使查询速度更快。数据库结构的设计，需要考虑数据冗余、查询和更新的速度、字段的数据类型是否合理等多方面的内容。
+
+- 将字段很多的表分解成多个表 
+
+对于字段比较多的表，如果有些字段的使用频率很低，可以将这些字段分离出来形成新表。因为当一个表的数据量很大时，会由于使用频率低的字段的存在而变慢。
+
+- 增加中间表
+
+对于需要经常联合查询的表，可以建立中间表以提高查询效率。通过建立中间表，把需要经常联合查询的数据插入到中间表中，然后将原来的联合查询改为对中间表的查询，以此来提高查询效率。
+
+
+
+## 14.为什么要用redis做验证码缓存, 这样做有什么好处?
+
+1.redis缓存运行效率高
+ 2.redis可以通过expire来设定过期策略，比较适用于验证码的场景。
+ 3.考虑到分布式数据个负载均衡数据要一致，这种共有的不用持久化的数据最好找一个缓存服务器存储
+ 4.redis、Memcache都是内存数据库，都支持K-Y型的数据结构
+ 5.redis还支持其他更加丰富的数据结构（list，set，hash等）
+
+
+
+## 15.Cookie、Session和Token的区别
+
+### 1.Session 与 Cookie的区别及关联关系
+cookie数据存放在客户的浏览器上，session数据放在服务器上(不同容器, 不同框架存储的位置不同, 可能是内存, 可能是文件, 也可以持久化储存)
+
+#### 1.1. Cookie原理
+  cookie是保存在本地终端的数据。cookie由服务器生成，发送给浏览器，浏览器把cookie以kv形式保存到某个目录下的文本文件内，下一次请求同一网站时会把该cookie发送给服务器。由于cookie是存在客户端上的，所以浏览器加入了一些限制确保cookie不会被恶意使用，同时不会占据太多磁盘空间，所以每个域的cookie数量是有限的。
+
+通过Set-Cookie响应头来设置Cookie, 字段中可以设置Cookie的值一些限制条件
+
+Domain：域，表示当前cookie所属于哪个域或子域下面
+Path：表示cookie的所属路径
+Expire time/Max-age: 表示Cookie的过期时间
+secure: 表示该cookie只能用https传输, 一般用于包含认证信息的cookie，要求传输此cookie的时候，必须用https传输
+httponly：表示此cookie必须用于http或https传输。这意味着，浏览器脚本，比如javascript中，是不允许访问操作此cookie的
+不同浏览器关于Cookie大小以及数量的限制各不相同, 但一般来说, cookie的大小最好不要超过4kb.
+
+#### 1.2. Session原理
+  session的中文翻译是“会话”，当用户打开某个web应用时，便与web服务器产生一次session。服务器使用session把用户的信息临时保存在了服务器上，用户离开网站后session会被销毁。这种用户信息存储方式相对cookie来说更安全，可是session有一个缺陷：如果web服务器做了负载均衡，那么下一个操作请求到了另一台服务器的时候session会丢失。
+
+
+#### 1.3. 总结
+
+可以看到实际上并没有太明显的区别, 可以理解成一个整体, 互相辅佐
+
+### 2.token
+
+ token的意思是“令牌”，是用户身份的验证方式，最简单的token组成:uid(用户唯一的身份标识)、time(当前时间的时间戳)、sign(签名，由token的前几位+盐以哈希算法压缩成一定长的十六进制字符串，可以防止恶意第三方拼接token请求服务器)。还可以把不变的参数也放进token，避免多次查库
+
+
+token和上面提到的Session或者Cookie也没有太明显的区别, 也是为了解决某种问题所创造出来的名词
+
+token概念: 带有某种特殊意义的字符串
+
+token所解决的问题:
+
+为了防止每次登陆的时候, 后端频繁查库.
+举两个例子: 如果session中保存着一些用户信息, 但服务器是集群的, 需要怎么做? 如果A 网站和 B 网站是同一家公司的关联服务。现在要求，用户只要在其中一个网站登录，再访问另一个网站就会自动登录, 又需要怎么做? 第一个问题我们可以采用session共享的方法, 第二个问题可以采用session数据持久化, 写入数据库. 不过缺点都是工作量比较大. 因此可以加密一段特殊的信息, 保存到客户端, 当用户发来请求时, 带上token, 服务端解密提取关键信息.
+
+### 3.cookie和session的区别
+
+1、cookie数据存放在客户的浏览器上，session数据放在服务器上。
+
+2、cookie不是很安全，别人可以分析存放在本地的COOKIE并进行COOKIE欺骗
+   考虑到安全应当使用session。
+
+3、session会在一定时间内保存在服务器上。当访问增多，会比较占用你服务器的性能
+   考虑到减轻服务器性能方面，应当使用COOKIE。
+
+4、单个cookie保存的数据不能超过4K，很多浏览器都限制一个站点最多保存20个cookie。
+
+5、所以个人建议：
+   将登陆信息等重要信息存放为SESSION
+   其他信息如果需要保留，可以放在COOKIE中
+
+
+
+### 4.token和session的区别
+
+session 和 oauth token并不矛盾，作为身份认证 token安全性比session好，因为每个请求都有签名还能防止监听以及重放攻击，而session就必须靠链路层来保障通讯安全了。如上所说，如果你需要实现有状态的会话，仍然可以增加session来在服务器端保存一些状态
+
+    App通常用restful api跟server打交道。Rest是stateless的，也就是app不需要像browser那样用cookie来保存session,因此用session token来标示自己就够了，session/state由api server的逻辑处理。 如果你的后端不是stateless的rest api, 那么你可能需要在app里保存session.可以在app里嵌入webkit,用一个隐藏的browser来管理cookie session.
+
+ 
+
+
+   Session 是一种HTTP存储机制，目的是为无状态的HTTP提供的持久机制。所谓Session 认证只是简单的把User 信息存储到Session 里，因为SID 的不可预测性，暂且认为是安全的。这是一种认证手段。 而Token ，如果指的是OAuth Token 或类似的机制的话，提供的是 认证 和 授权 ，认证是针对用户，授权是针对App 。其目的是让 某App有权利访问 某用户 的信息。这里的 Token是唯一的。不可以转移到其它 App上，也不可以转到其它 用户 上。 转过来说Session 。Session只提供一种简单的认证，即有此 SID，即认为有此 User的全部权利。是需要严格保密的，这个数据应该只保存在站方，不应该共享给其它网站或者第三方App。 所以简单来说，如果你的用户数据可能需要和第三方共享，或者允许第三方调用 API 接口，用 Token 。如果永远只是自己的网站，自己的 App，用什么就无所谓了。
+
+  token就是令牌，比如你授权（登录）一个程序时，他就是个依据，判断你是否已经授权该软件；cookie就是写在客户端的一个txt文件，里面包括你登录信息之类的，这样你下次在登录某个网站，就会自动调用cookie自动登录用户名；session和cookie差不多，只是session是写在服务器端的文件，也需要在客户端写入cookie文件，但是文件里是你的浏览器编号.Session的状态是存储在服务器端，客户端只有session id；而Token的状态是存储在客户端。
+
+
+## 15. hashmap的时间复杂度一定是O(1)吗?
+
+不一定。如果检索到的bucket位置没有重复hashcode的entry(链表)，复杂度为O(1)，如果检索位置有链表，那么需要将链表整个遍历，然后查看是否重复后加入，此时的时间复杂度为O(n)。
+
+
+
+## 16.map为什么用[链表](https://www.nowcoder.com/jump/super-jump/word?word=链表)来解决哈希冲突？
+
+因为hashmap的数据结构是基于数组加链表，而数组以hashcode进行bucket位置的散列，存储的是相同hashcode的key和value，而hashcode相同，key和value都有可能不同。这时对于bucket位置来说，存储的节点都是不同的数据，所以用链表更适合。
+
+
+
+## 17. redis IO多路复用原理
+
+总结：所谓的redis的多路复用原理
+他是把IO操作再细分成多个事件去处理
+比如IO涉及连接 读取 输入
+把这三种当成三种事件分别起三个线程处理
+如果一个连接来了显示被读取线程处理了，然后再执行写入，那么之前的读取就可以被后面的请求复用，吞吐量就提高了
+
+
+
